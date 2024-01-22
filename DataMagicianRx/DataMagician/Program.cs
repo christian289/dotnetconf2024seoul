@@ -10,7 +10,7 @@ IHost host = Host.CreateDefaultBuilder(args)
     {
         services.AddSingleton<DataContainerService>();
         services.AddHostedService<TcpClientService>();
-        services.AddHostedService<RxMagicService>();
+        //services.AddHostedService<RxMagicService>();
     })
     .Build();
 

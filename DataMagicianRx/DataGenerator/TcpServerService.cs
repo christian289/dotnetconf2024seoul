@@ -2,38 +2,61 @@
 
 namespace DataGenerator;
 
-internal class TcpServerService : BackgroundService
+internal class TcpServerService(ILogger<TcpServerService> logger) : BackgroundService
 {
+    private readonly ILogger<TcpServerService> _logger = logger;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        TcpListener listener = new(IPAddress.Loopback, Statics.Port);
-        listener.Start();
+        List<Task> connTasks = []; // new(); 가 아니라 []; 이건...새로운 문법인가...?
 
-        try
+        while (!stoppingToken.IsCancellationRequested)
         {
-            while (!stoppingToken.IsCancellationRequested)
+            try
             {
-                try
+                for (int start_port = Statics.Port; start_port < Statics.MaxPort; start_port++)
                 {
-                    TcpClient client = await listener.AcceptTcpClientAsync(stoppingToken);
-                    _ = HandleClientAsync(client.GetStream(), stoppingToken);
-                }
-                catch (Exception ex)
-                {
-                    throw;
+                    TcpListener listener = new(IPAddress.Loopback, start_port);
+                    listener.Start();
+                    _logger.LogInformation($"[{IPAddress.Loopback}:{start_port}] Listening...");
+                    connTasks.Add(AcceptClientsAsync(listener, stoppingToken));
                 }
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+
+                throw;
+            }
+
+            await Task.WhenAll(connTasks);
         }
-        finally
+    }
+
+    private async Task AcceptClientsAsync(TcpListener listener, CancellationToken stoppingToken)
+    {
+        while (true)
         {
-            listener.Stop();
+            TcpClient client = await listener.AcceptTcpClientAsync(stoppingToken);
+            _logger.LogInformation($"[{client.Client.LocalEndPoint}] Accepted!");
+
+            try
+            {
+                _ = HandleClientAsync(client.GetStream(), stoppingToken);
+            }
+            catch (SocketException)
+            {
+                listener.Stop();
+                listener.Start();
+            }
         }
     }
 
     private async Task HandleClientAsync(NetworkStream stream, CancellationToken stoppingToken)
     {
         Pipe pipe = new();
-        Task writingTask = WriteToPipeAsync(stream, pipe.Writer, stoppingToken);
+        //Task writingTask = WriteToPipeAsync(stream, pipe.Writer, stoppingToken);
+        Task writingTask = FillPipeAsync(stream, pipe.Writer, stoppingToken);
         Task readingTask = ReadFromPipeAsync(pipe.Reader, stoppingToken);
 
         await Task.WhenAll(writingTask, readingTask);
@@ -42,26 +65,26 @@ internal class TcpServerService : BackgroundService
 
     private async Task FillPipeAsync(NetworkStream stream, PipeWriter writer, CancellationToken stoppingToken)
     {
-        Stopwatch stopwatch = new();
-
         while (!stoppingToken.IsCancellationRequested)
         {
-            stopwatch.Restart();
-
-            Memory<byte> memory = writer.GetMemory(Statics.BufferSize);
+            Memory<byte> memory = writer.GetMemory(Statics.ClientToServerBufferSize); // JsonRpcRequest 크기
 
             try
             {
                 int bytesRead = await stream.ReadAsync(memory, stoppingToken);
 
                 if (bytesRead == 0)
-                    break;
+                    continue;
 
                 writer.Advance(bytesRead);
             }
+            catch (IOException ex) when (ex.InnerException is SocketException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
-                //LogError(ex);
+                _logger.LogError(ex.Message);
 
                 break;
             }
