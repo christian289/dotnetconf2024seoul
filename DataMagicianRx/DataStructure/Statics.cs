@@ -7,5 +7,6 @@ public static class Statics
     public const int MaxPort = 11030;
     public const int ClientToServerBufferSize = 128;
     public const int ServerToClientBufferSize = 1024;
-    public const int TimerInterval = 3000;
+    public const int TimerInterval = 1000;
+    public const int Delay = 1100;
 }

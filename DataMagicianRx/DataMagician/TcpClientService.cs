@@ -1,11 +1,13 @@
 ﻿using DataStructure;
+using System.Reactive.Concurrency;
 
 namespace DataMagician;
 
 internal class TcpClientService(ILogger<TcpClientService> logger, DataContainerService dataContainerService) : BackgroundService
 {
     private readonly ILogger<TcpClientService> _logger = logger;
-    private readonly DataContainerService dataContainerService = dataContainerService;
+    private readonly DataContainerService _dataContainerService = dataContainerService;
+    private List<IDisposable> _observationList = [];
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -54,87 +56,209 @@ internal class TcpClientService(ILogger<TcpClientService> logger, DataContainerS
             }
         }
 
-        NetworkStream stream = client.GetStream();
-        Pipe pipe = new();
-
-        JsonRpcPipeWriteStart(pipe.Writer, stoppingToken);
-        JsonRpcPipeReadAndSocketSendStart(stream, pipe.Reader, stoppingToken);
+        _logger.LogInformation("Observe Start~");
+        //MakeObservationMethodA();
+        //MakeObservationMethodB();
+        //MakeObservationMethodC();
+        //MakeObservationMethodA_();
+        //MakeObservationMethodB_();
+        //MakeObservationMethodB__();
+        MakeObservationMethodC_();
+        ConnectPipe(client);
     }
 
-    private int JsonRpcSelector(int id, PipeWriter writer)
+    private void ConnectPipe(TcpClient client)
     {
-        JsonRpcRequest request;
-
-        if (id % 3 == 0)
-            request = new(new AMethod(), id);
-        else if (id % 3 == 1)
-            request = new(new BMethod(), id);
-        else
-            request = new(new CMethod(), id);
-
-        string json_str = request.Serialize();
-
-        _logger.LogDebug($"Write Pipe Data: {json_str}");
-
-        json_str = json_str.Replace("\r", string.Empty).Replace("\n", string.Empty);
-        byte[] bytes = Encoding.UTF8.GetBytes(json_str);
-        writer.Write(bytes);
-
-        id++;
-
-        if (id == int.MaxValue)
-            return 0;
-        else
-            return id;
+        while (client.Connected)
+        {
+            Pipe pipe = new();
+            JsonRpcPipeWriteStart(client, pipe.Writer);
+            JsonRpcPipeReadAndSocketSendStart(client, pipe.Reader);
+        }
     }
 
-    private void JsonRpcPipeWriteStart(PipeWriter writer, CancellationToken ct)
+    private void MakeObservationMethodA()
     {
-        _ = Task.Factory.StartNew(
+        // A Method에 대한 구독
+        var observation = _dataContainerService.RawDataSubject
+            .AsObservable()
+            .ObserveOn(TaskPoolScheduler.Default)
+            .Select(JsonConvert.DeserializeObject<JsonRpc>)
+            .Where(rpc => rpc.Method == "A")
+            .Subscribe(
+                onNext: rpc => _logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.Red, $"A Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
+                onError: ex => _logger.LogError(ex.Message),
+                onCompleted: () => _logger.LogInformation("Observation A ByeBye~"));
+        _observationList.Add(observation);
+    }
+
+    private void MakeObservationMethodB()
+    {
+        // B Method에 대한 구독
+        var observation = _dataContainerService.RawDataSubject
+            .AsObservable()
+            .ObserveOn(TaskPoolScheduler.Default)
+            .Select(JsonConvert.DeserializeObject<JsonRpc>)
+            .Where(rpc => rpc.Method == "B")
+            .Subscribe(
+                onNext: rpc => _logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.Green, $"B Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
+                onError: ex => _logger.LogError(ex.Message),
+                onCompleted: () => _logger.LogInformation("Observation B ByeBye~"));
+        _observationList.Add(observation);
+    }
+
+    private void MakeObservationMethodC()
+    {
+        // C Method에 대한 구독
+        var observation = _dataContainerService.RawDataSubject
+            .AsObservable()
+            .ObserveOn(TaskPoolScheduler.Default)
+            .Select(JsonConvert.DeserializeObject<JsonRpc>)
+            .Where(rpc => rpc.Method == "C")
+            .Subscribe(
+                onNext: rpc => _logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.Blue, $"C Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
+                onError: ex => _logger.LogError(ex.Message),
+                onCompleted: () => _logger.LogInformation("Observation C ByeBye~"));
+        _observationList.Add(observation);
+    }
+
+    private void MakeObservationMethodA_()
+    {
+        // A Method에 대한 구독을 10초만 한다.
+        var stopObserve = Observable.Timer(TimeSpan.FromSeconds(10));
+        var observation = _dataContainerService.RawDataSubject
+            .AsObservable()
+            .ObserveOn(TaskPoolScheduler.Default)
+            .TakeUntil(stopObserve)
+            .Select(JsonConvert.DeserializeObject<JsonRpc>)
+            .Where(rpc => rpc.Method == "A")
+            .Subscribe(
+                onNext: rpc => _logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.Yellow, $"A Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
+                onError: ex => _logger.LogError(ex.Message),
+                onCompleted: () => _logger.LogInformation("10초 되었으니까 A 메서드 구독 그만~"));
+        _observationList.Add(observation);
+    }
+
+    private void MakeObservationMethodB_()
+    {
+        // B Method에 대한 구독을 3번만 한다.
+        var observation = _dataContainerService.RawDataSubject
+            .AsObservable()
+            .ObserveOn(TaskPoolScheduler.Default)
+            .Select(JsonConvert.DeserializeObject<JsonRpc>)
+            .Where(rpc => rpc.Method == "B")
+            .Take(3)
+            .Subscribe(
+                onNext: rpc => _logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.Magenta, $"B Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
+                onError: ex => _logger.LogError(ex.Message),
+                onCompleted: () => _logger.LogInformation("B 메서드 3번만 구독하고 끝."));
+        _observationList.Add(observation);
+    }
+
+    private void MakeObservationMethodB__()
+    {
+        // B Method에 대한 구독을 총 3번만 한다.
+        var observation = _dataContainerService.RawDataSubject
+            .AsObservable()
+            .ObserveOn(TaskPoolScheduler.Default)
+            .Take(3) // 여기다가 붙이면 구독 자체를 3번만 한다. Where 밑에 있을 때 Where 조건에 맞는 것을 3번만 한다.
+            .Select(JsonConvert.DeserializeObject<JsonRpc>)
+            .Where(rpc => rpc.Method == "B")
+            .Subscribe(
+                onNext: rpc => _logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.DarkYellow, $"B Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
+                onError: ex => _logger.LogError(ex.Message),
+                onCompleted: () => _logger.LogInformation("B 메서드 3번만 구독하고 끝."));
+        _observationList.Add(observation);
+    }
+
+    private void MakeObservationMethodC_()
+    {
+        // 10초 마다 구독을 실행시켰을 때 Rx Stream의 데이터가 Where 절을 통과해야 구독이 발생되므로, 구독이 자주 발생되지 않는다.
+        var observation = _dataContainerService.RawDataSubject
+            .AsObservable()
+            .ObserveOn(TaskPoolScheduler.Default)
+            .Sample(TimeSpan.FromSeconds(10)) // 10초마다 구독한다.
+            .Select(JsonConvert.DeserializeObject<JsonRpc>)
+            .Where(rpc => rpc.Method == "C")
+            .Subscribe(
+                onNext: rpc =>
+                {
+                    _logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.DarkCyan, $"C Method를 10초마다 구독."), null, (state, exception) => state.Item2);
+                    _logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.DarkCyan, $"C Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2);
+                },
+                onError: ex => _logger.LogError(ex.Message),
+                onCompleted: () => _logger.LogInformation("10초 마다 구독하는 C 메서드 구독 끝."));
+        _observationList.Add(observation);
+    }
+
+    private async void JsonRpcPipeWriteStart(TcpClient client, PipeWriter writer)
+    {
+        await Task.Factory.StartNew(
             action: async () =>
             {
-                int request_id = default;
-                using PeriodicTimer timer = new(TimeSpan.FromMilliseconds(Statics.TimerInterval));
-
-                while (await timer.WaitForNextTickAsync(ct))
+                while (true)
                 {
-                    request_id = JsonRpcSelector(request_id, writer);
-                    await writer.FlushAsync(ct);
+                    Memory<byte> memory = writer.GetMemory(Statics.ClientToServerBufferSize); // JsonRpcRequest 크기
+
+                    try
+                    {
+                        int bytesRead = await client.Client.ReceiveAsync(memory);
+
+                        if (bytesRead == 0)
+                            continue;
+
+                        writer.Advance(bytesRead);
+                    }
+                    catch (IOException ex) when (ex.InnerException is SocketException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex.Message);
+
+                        break;
+                    }
+
+                    FlushResult result = await writer.FlushAsync();
+
+                    if (result.IsCompleted)
+                    {
+                        await writer.CompleteAsync();
+
+                        break;
+                    }
                 }
             },
-            cancellationToken: ct,
+            cancellationToken: CancellationToken.None,
             creationOptions: TaskCreationOptions.LongRunning,
             scheduler: TaskScheduler.Default);
     }
 
-    private void JsonRpcPipeReadAndSocketSendStart(NetworkStream stream, PipeReader reader, CancellationToken ct)
+    private void JsonRpcPipeReadAndSocketSendStart(TcpClient client, PipeReader reader)
     {
         _ = Task.Factory.StartNew(
             action: async () =>
             {
-                while (!ct.IsCancellationRequested)
+                while (true)
                 {
-                    ReadResult result = await reader.ReadAsync(ct);
+                    ReadResult result = await reader.ReadAsync();
                     ReadOnlySequence<byte> buffer = result.Buffer;
 
                     if (buffer.Length > 0)
                     {
-                        if (stream.CanWrite)
-                        {
-                            string jsonResponse = Encoding.UTF8.GetString(buffer.ToArray());
-                            stream.Write(buffer.ToArray());
-                            _logger.LogInformation($"Send Data: {jsonResponse}");
-                            dataContainerService.RawDataSubject.OnNext(jsonResponse);
-                        }
+                        string jsonData = Encoding.UTF8.GetString(buffer.ToArray());
+                        _logger.LogDebug($"Received Source Data: {jsonData}");
+                        _dataContainerService.RawDataSubject.OnNext(jsonData);
+
+                        reader.AdvanceTo(buffer.End);
+
+                        if (result.IsCompleted)
+                            break;
                     }
-
-                    reader.AdvanceTo(buffer.End);
-
-                    if (result.IsCompleted)
-                        break;
                 }
             },
-            cancellationToken: ct,
+            cancellationToken: CancellationToken.None,
             creationOptions: TaskCreationOptions.LongRunning,
             scheduler: TaskScheduler.Default);
     }

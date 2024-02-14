@@ -8,6 +8,7 @@ IHost host = Host.CreateDefaultBuilder(args)
     })
     .ConfigureServices(services =>
     {
+        services.AddSingleton<DataContainerService>();
         services.AddHostedService<TcpServerService>();
     })
     .Build();

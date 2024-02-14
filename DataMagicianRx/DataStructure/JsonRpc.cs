@@ -1,9 +1,9 @@
 ﻿namespace DataStructure;
 
-public struct JsonRpcRequest(IJsonRpcMethod method, int req_id, params object[] param)
+public struct JsonRpc(IJsonRpcMethod method, int req_id, params object[] param)
 {
     [JsonProperty("jsonrpc")]
-    public string JsonRpc { get; set; } = "2.0";
+    public string Version { get; set; } = "2.0";
 
     [JsonProperty("method")]
     public string Method { get; set; } = method.MethodName;
