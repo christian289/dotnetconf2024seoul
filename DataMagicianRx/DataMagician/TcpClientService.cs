@@ -3,11 +3,12 @@ using System.Reactive.Concurrency;
 
 namespace DataMagician;
 
-internal class TcpClientService(ILogger<TcpClientService> logger, DataContainerService dataContainerService) : BackgroundService
+internal class TcpClientService(ILogger<TcpClientService> logger) : BackgroundService
 {
     private readonly ILogger<TcpClientService> _logger = logger;
-    private readonly DataContainerService _dataContainerService = dataContainerService;
     private List<IDisposable> _observationList = [];
+
+    private Subject<string> RawDataSubject { get; init; } = new Subject<string>();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -67,20 +68,10 @@ internal class TcpClientService(ILogger<TcpClientService> logger, DataContainerS
         ConnectPipe(client);
     }
 
-    private void ConnectPipe(TcpClient client)
-    {
-        while (client.Connected)
-        {
-            Pipe pipe = new();
-            JsonRpcPipeWriteStart(client, pipe.Writer);
-            JsonRpcPipeReadAndSocketSendStart(client, pipe.Reader);
-        }
-    }
-
     private void MakeObservationMethodA()
     {
         // A Method에 대한 구독
-        var observation = _dataContainerService.RawDataSubject
+        var observation = RawDataSubject
             .AsObservable()
             .ObserveOn(TaskPoolScheduler.Default)
             .Select(JsonConvert.DeserializeObject<JsonRpc>)
@@ -95,7 +86,7 @@ internal class TcpClientService(ILogger<TcpClientService> logger, DataContainerS
     private void MakeObservationMethodB()
     {
         // B Method에 대한 구독
-        var observation = _dataContainerService.RawDataSubject
+        var observation = RawDataSubject
             .AsObservable()
             .ObserveOn(TaskPoolScheduler.Default)
             .Select(JsonConvert.DeserializeObject<JsonRpc>)
@@ -110,7 +101,7 @@ internal class TcpClientService(ILogger<TcpClientService> logger, DataContainerS
     private void MakeObservationMethodC()
     {
         // C Method에 대한 구독
-        var observation = _dataContainerService.RawDataSubject
+        var observation = RawDataSubject
             .AsObservable()
             .ObserveOn(TaskPoolScheduler.Default)
             .Select(JsonConvert.DeserializeObject<JsonRpc>)
@@ -126,7 +117,7 @@ internal class TcpClientService(ILogger<TcpClientService> logger, DataContainerS
     {
         // A Method에 대한 구독을 10초만 한다.
         var stopObserve = Observable.Timer(TimeSpan.FromSeconds(10));
-        var observation = _dataContainerService.RawDataSubject
+        var observation = RawDataSubject
             .AsObservable()
             .ObserveOn(TaskPoolScheduler.Default)
             .TakeUntil(stopObserve)
@@ -142,7 +133,7 @@ internal class TcpClientService(ILogger<TcpClientService> logger, DataContainerS
     private void MakeObservationMethodB_()
     {
         // B Method에 대한 구독을 3번만 한다.
-        var observation = _dataContainerService.RawDataSubject
+        var observation = RawDataSubject
             .AsObservable()
             .ObserveOn(TaskPoolScheduler.Default)
             .Select(JsonConvert.DeserializeObject<JsonRpc>)
@@ -158,7 +149,7 @@ internal class TcpClientService(ILogger<TcpClientService> logger, DataContainerS
     private void MakeObservationMethodB__()
     {
         // B Method에 대한 구독을 총 3번만 한다.
-        var observation = _dataContainerService.RawDataSubject
+        var observation = RawDataSubject
             .AsObservable()
             .ObserveOn(TaskPoolScheduler.Default)
             .Take(3) // 여기다가 붙이면 구독 자체를 3번만 한다. Where 밑에 있을 때 Where 조건에 맞는 것을 3번만 한다.
@@ -174,7 +165,7 @@ internal class TcpClientService(ILogger<TcpClientService> logger, DataContainerS
     private void MakeObservationMethodC_()
     {
         // 10초 마다 구독을 실행시켰을 때 Rx Stream의 데이터가 Where 절을 통과해야 구독이 발생되므로, 구독이 자주 발생되지 않는다.
-        var observation = _dataContainerService.RawDataSubject
+        var observation = RawDataSubject
             .AsObservable()
             .ObserveOn(TaskPoolScheduler.Default)
             .Sample(TimeSpan.FromSeconds(10)) // 10초마다 구독한다.
@@ -189,6 +180,16 @@ internal class TcpClientService(ILogger<TcpClientService> logger, DataContainerS
                 onError: ex => _logger.LogError(ex.Message),
                 onCompleted: () => _logger.LogInformation("10초 마다 구독하는 C 메서드 구독 끝."));
         _observationList.Add(observation);
+    }
+
+    private void ConnectPipe(TcpClient client)
+    {
+        while (client.Connected)
+        {
+            Pipe pipe = new();
+            JsonRpcPipeWriteStart(client, pipe.Writer);
+            JsonRpcPipeReadAndSocketSendStart(client, pipe.Reader);
+        }
     }
 
     private async void JsonRpcPipeWriteStart(TcpClient client, PipeWriter writer)
@@ -249,7 +250,7 @@ internal class TcpClientService(ILogger<TcpClientService> logger, DataContainerS
                     {
                         string jsonData = Encoding.UTF8.GetString(buffer.ToArray());
                         _logger.LogDebug($"Received Source Data: {jsonData}");
-                        _dataContainerService.RawDataSubject.OnNext(jsonData);
+                        RawDataSubject.OnNext(jsonData);
 
                         reader.AdvanceTo(buffer.End);
 
