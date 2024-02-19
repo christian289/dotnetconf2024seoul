@@ -57,13 +57,13 @@ internal class TcpClientService(ILogger<TcpClientService> logger) : BackgroundSe
             }
         }
 
-        _logger.LogInformation("Observe Start~");
-        //MakeObservationMethodA();
-        //MakeObservationMethodB();
-        //MakeObservationMethodC();
-        //MakeObservationMethodA_();
-        //MakeObservationMethodB_();
-        //MakeObservationMethodB__();
+        _logger.LogInformation("Observation Start~");
+        MakeObservationMethodA();
+        MakeObservationMethodB();
+        MakeObservationMethodC();
+        MakeObservationMethodA_();
+        MakeObservationMethodB_();
+        MakeObservationMethodB__();
         MakeObservationMethodC_();
         ConnectPipe(client);
     }
