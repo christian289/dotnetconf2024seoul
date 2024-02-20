@@ -6,6 +6,7 @@ global using System.Buffers;
 global using System.IO.Pipelines;
 global using System.Net;
 global using System.Net.Sockets;
+global using System.Reactive.Concurrency;
 global using System.Reactive.Linq;
 global using System.Reactive.Subjects;
 global using System.Text;
