@@ -5,7 +5,6 @@ namespace DataMagician;
 
 internal class TcpClientService(ILogger<TcpClientService> logger) : BackgroundService
 {
-    private readonly ILogger<TcpClientService> _logger = logger;
     private List<IDisposable> _observationList = [];
 
     private Subject<string> RawDataSubject { get; init; } = new Subject<string>();
@@ -27,21 +26,21 @@ internal class TcpClientService(ILogger<TcpClientService> logger) : BackgroundSe
             }
             catch (OperationCanceledException ex)
             {
-                _logger.LogError($"IP: {IPAddress.Loopback}, Port: {current_port}, Timeout.");
+                logger.LogError($"IP: {IPAddress.Loopback}, Port: {current_port}, Timeout.");
 
                 if (!isRetry)
                 {
                     isRetry = true;
-                    _logger.LogInformation($"Retry...");
+                    logger.LogInformation($"Retry...");
 
                     continue;
                 }
 
-                _logger.LogInformation($"Port Number Up: {++current_port}");
+                logger.LogInformation($"Port Number Up: {++current_port}");
 
                 if (current_port > Statics.MaxPort)
                 {
-                    _logger.LogInformation($"재시도 포트가 모두 사용되었습니다...프로그램을 종료합니다.");
+                    logger.LogInformation($"재시도 포트가 모두 사용되었습니다...프로그램을 종료합니다.");
 
                     return;
                 }
@@ -51,13 +50,13 @@ internal class TcpClientService(ILogger<TcpClientService> logger) : BackgroundSe
             }
             catch (Exception ex)
             {
-                _logger.LogError($"{ex.Message} // 연결 실패.");
+                logger.LogError($"{ex.Message} // 연결 실패.");
 
                 return;
             }
         }
 
-        _logger.LogInformation("Observation Start~");
+        logger.LogInformation("Observation Start~");
         MakeObservationMethodA();
         MakeObservationMethodB();
         MakeObservationMethodC();
@@ -77,9 +76,9 @@ internal class TcpClientService(ILogger<TcpClientService> logger) : BackgroundSe
             .Select(JsonConvert.DeserializeObject<JsonRpc>)
             .Where(rpc => rpc.Method == "A")
             .Subscribe(
-                onNext: rpc => _logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.Red, $"A Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
-                onError: ex => _logger.LogError(ex.Message),
-                onCompleted: () => _logger.LogInformation("Observation A ByeBye~"));
+                onNext: rpc => logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.Red, $"A Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
+                onError: ex => logger.LogError(ex.Message),
+                onCompleted: () => logger.LogInformation("Observation A ByeBye~"));
         _observationList.Add(observation);
     }
 
@@ -92,9 +91,9 @@ internal class TcpClientService(ILogger<TcpClientService> logger) : BackgroundSe
             .Select(JsonConvert.DeserializeObject<JsonRpc>)
             .Where(rpc => rpc.Method == "B")
             .Subscribe(
-                onNext: rpc => _logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.Green, $"B Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
-                onError: ex => _logger.LogError(ex.Message),
-                onCompleted: () => _logger.LogInformation("Observation B ByeBye~"));
+                onNext: rpc => logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.Green, $"B Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
+                onError: ex => logger.LogError(ex.Message),
+                onCompleted: () => logger.LogInformation("Observation B ByeBye~"));
         _observationList.Add(observation);
     }
 
@@ -107,9 +106,9 @@ internal class TcpClientService(ILogger<TcpClientService> logger) : BackgroundSe
             .Select(JsonConvert.DeserializeObject<JsonRpc>)
             .Where(rpc => rpc.Method == "C")
             .Subscribe(
-                onNext: rpc => _logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.Blue, $"C Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
-                onError: ex => _logger.LogError(ex.Message),
-                onCompleted: () => _logger.LogInformation("Observation C ByeBye~"));
+                onNext: rpc => logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.Blue, $"C Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
+                onError: ex => logger.LogError(ex.Message),
+                onCompleted: () => logger.LogInformation("Observation C ByeBye~"));
         _observationList.Add(observation);
     }
 
@@ -124,9 +123,9 @@ internal class TcpClientService(ILogger<TcpClientService> logger) : BackgroundSe
             .Select(JsonConvert.DeserializeObject<JsonRpc>)
             .Where(rpc => rpc.Method == "A")
             .Subscribe(
-                onNext: rpc => _logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.Yellow, $"A Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
-                onError: ex => _logger.LogError(ex.Message),
-                onCompleted: () => _logger.LogInformation("10초 되었으니까 A 메서드 구독 그만~"));
+                onNext: rpc => logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.Yellow, $"A Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
+                onError: ex => logger.LogError(ex.Message),
+                onCompleted: () => logger.LogInformation("10초 되었으니까 A 메서드 구독 그만~"));
         _observationList.Add(observation);
     }
 
@@ -140,9 +139,9 @@ internal class TcpClientService(ILogger<TcpClientService> logger) : BackgroundSe
             .Where(rpc => rpc.Method == "B")
             .Take(3)
             .Subscribe(
-                onNext: rpc => _logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.Magenta, $"B Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
-                onError: ex => _logger.LogError(ex.Message),
-                onCompleted: () => _logger.LogInformation("B 메서드 3번만 구독하고 끝."));
+                onNext: rpc => logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.Magenta, $"B Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
+                onError: ex => logger.LogError(ex.Message),
+                onCompleted: () => logger.LogInformation("B 메서드 3번만 구독하고 끝."));
         _observationList.Add(observation);
     }
 
@@ -156,9 +155,9 @@ internal class TcpClientService(ILogger<TcpClientService> logger) : BackgroundSe
             .Select(JsonConvert.DeserializeObject<JsonRpc>)
             .Where(rpc => rpc.Method == "B")
             .Subscribe(
-                onNext: rpc => _logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.DarkYellow, $"B Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
-                onError: ex => _logger.LogError(ex.Message),
-                onCompleted: () => _logger.LogInformation("B 메서드 3번만 구독하고 끝."));
+                onNext: rpc => logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.DarkYellow, $"B Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2),
+                onError: ex => logger.LogError(ex.Message),
+                onCompleted: () => logger.LogInformation("B 메서드 3번만 구독하고 끝."));
         _observationList.Add(observation);
     }
 
@@ -174,11 +173,11 @@ internal class TcpClientService(ILogger<TcpClientService> logger) : BackgroundSe
             .Subscribe(
                 onNext: rpc =>
                 {
-                    _logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.DarkCyan, $"C Method를 10초마다 구독."), null, (state, exception) => state.Item2);
-                    _logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.DarkCyan, $"C Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2);
+                    logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.DarkCyan, $"C Method를 10초마다 구독."), null, (state, exception) => state.Item2);
+                    logger.Log(LogLevel.Information, new EventId(), (ConsoleColor.DarkCyan, $"C Method: {rpc.Serialize()}"), null, (state, exception) => state.Item2);
                 },
-                onError: ex => _logger.LogError(ex.Message),
-                onCompleted: () => _logger.LogInformation("10초 마다 구독하는 C 메서드 구독 끝."));
+                onError: ex => logger.LogError(ex.Message),
+                onCompleted: () => logger.LogInformation("10초 마다 구독하는 C 메서드 구독 끝."));
         _observationList.Add(observation);
     }
 
@@ -216,7 +215,7 @@ internal class TcpClientService(ILogger<TcpClientService> logger) : BackgroundSe
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex.Message);
+                        logger.LogError(ex.Message);
 
                         break;
                     }
@@ -249,7 +248,7 @@ internal class TcpClientService(ILogger<TcpClientService> logger) : BackgroundSe
                     if (buffer.Length > 0)
                     {
                         string jsonData = Encoding.UTF8.GetString(buffer.ToArray());
-                        _logger.LogDebug($"Received Source Data: {jsonData}");
+                        logger.LogDebug($"Received Source Data: {jsonData}");
                         RawDataSubject.OnNext(jsonData);
 
                         reader.AdvanceTo(buffer.End);
