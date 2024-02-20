@@ -5,8 +5,6 @@ namespace DataGenerator;
 
 internal class TcpServerService(ILogger<TcpServerService> logger, DataContainerService dataContainerService) : BackgroundService
 {
-    private readonly ILogger<TcpServerService> _logger = logger;
-    private readonly DataContainerService dataContainerService = dataContainerService;
     private Dictionary<Task, CancellationTokenSource> connTasks = []; // 소켓 커넥션 리스트
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -20,7 +18,7 @@ internal class TcpServerService(ILogger<TcpServerService> logger, DataContainerS
                     for (int start_port = Statics.Port; start_port < Statics.MaxPort; start_port++)
                     {
                         TcpListener listener = new(IPAddress.Loopback, start_port);
-                        _logger.LogInformation($"[{IPAddress.Loopback}:{start_port}] Listening...");
+                        logger.LogInformation($"[{IPAddress.Loopback}:{start_port}] Listening...");
                         listener.Start();
                         var cts = new CancellationTokenSource();
                         connTasks.Add(AcceptClientsAsync(listener, cts.Token), cts);
@@ -28,7 +26,7 @@ internal class TcpServerService(ILogger<TcpServerService> logger, DataContainerS
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex.Message);
+                    logger.LogError(ex.Message);
 
                     throw;
                 }
@@ -47,7 +45,7 @@ internal class TcpServerService(ILogger<TcpServerService> logger, DataContainerS
         while (!stoppingToken.IsCancellationRequested)
         {
             TcpClient client = await listener.AcceptTcpClientAsync(stoppingToken);
-            _logger.LogInformation($"[{client.Client.LocalEndPoint}] Accepted!");
+            logger.LogInformation($"[{client.Client.LocalEndPoint}] Accepted!");
             _ = HandleClientAsync(client.GetStream(), stoppingToken);
         }
     }
@@ -72,7 +70,7 @@ internal class TcpServerService(ILogger<TcpServerService> logger, DataContainerS
             .Select(Encoding.UTF8.GetBytes) // dataContainerService에서 발생된 데이터를 byte[]로 변환
             .Catch<byte[], Exception>(ex =>
             {
-                _logger.LogError(ex.Message);
+                logger.LogError(ex.Message);
                 return Observable.Empty<byte[]>();
             }) // Select하다가 Exception이 발생하면 빈 Observable<byte[]>을 반환하면서 로그 기록
             .Do(
@@ -113,7 +111,7 @@ internal class TcpServerService(ILogger<TcpServerService> logger, DataContainerS
                 if (stream.CanWrite)
                 {
                     stream.Write(buffer.ToArray());
-                    _logger.LogDebug($"PipeReader: {Encoding.UTF8.GetString(buffer.ToArray())}");
+                    logger.LogDebug($"PipeReader: {Encoding.UTF8.GetString(buffer.ToArray())}");
                 }
             }
 
