@@ -21,11 +21,11 @@ internal class DataContainerService
 
     private async void DataGenerate()
     {
-        int request_id = default;
+        int requestId = default;
         using PeriodicTimer timer = new(TimeSpan.FromMilliseconds(Statics.TimerInterval));
 
         while (await timer.WaitForNextTickAsync(Cts.Token))
-            request_id = JsonRpcSelector(request_id);
+            requestId = JsonRpcSelector(requestId);
     }
 
     private int JsonRpcSelector(int id)
@@ -39,12 +39,12 @@ internal class DataContainerService
         else
             request = new(new CMethod(), id);
 
-        string json_str = request.Serialize();
+        string jsonStr = request.Serialize();
 
-        _logger.LogDebug($"Generated Json String Data:\r\n{json_str}");
+        _logger.LogDebug($"Generated Json String Data:\r\n{jsonStr}");
 
-        json_str = json_str.Replace("\r", string.Empty).Replace("\n", string.Empty);
-        RawDataSubject.OnNext(json_str);
+        jsonStr = jsonStr.Replace("\r", string.Empty).Replace("\n", string.Empty);
+        RawDataSubject.OnNext(jsonStr);
 
         id++;
 

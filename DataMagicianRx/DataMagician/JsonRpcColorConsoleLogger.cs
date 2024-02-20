@@ -14,7 +14,7 @@
     {
         private readonly string _name = name;
 
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => default!;
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull => default!;
 
         public bool IsEnabled(LogLevel logLevel) => true;
 

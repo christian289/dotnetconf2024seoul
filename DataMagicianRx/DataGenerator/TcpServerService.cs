@@ -5,7 +5,7 @@ namespace DataGenerator;
 
 internal class TcpServerService(ILogger<TcpServerService> logger, DataContainerService dataContainerService) : BackgroundService
 {
-    private Dictionary<Task, CancellationTokenSource> connTasks = []; // 소켓 커넥션 리스트
+    private readonly Dictionary<Task, CancellationTokenSource> _connTasks = []; // 소켓 커넥션 리스트
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -15,13 +15,13 @@ internal class TcpServerService(ILogger<TcpServerService> logger, DataContainerS
             {
                 try
                 {
-                    for (int start_port = Statics.Port; start_port < Statics.MaxPort; start_port++)
+                    for (int startPort = Statics.Port; startPort < Statics.MaxPort; startPort++)
                     {
-                        TcpListener listener = new(IPAddress.Loopback, start_port);
-                        logger.LogInformation($"[{IPAddress.Loopback}:{start_port}] Listening...");
+                        TcpListener listener = new(IPAddress.Loopback, startPort);
+                        logger.LogInformation($"[{IPAddress.Loopback}:{startPort}] Listening...");
                         listener.Start();
                         var cts = new CancellationTokenSource();
-                        connTasks.Add(AcceptClientsAsync(listener, cts.Token), cts);
+                        _connTasks.Add(AcceptClientsAsync(listener, cts.Token), cts);
                     }
                 }
                 catch (Exception ex)
@@ -31,12 +31,12 @@ internal class TcpServerService(ILogger<TcpServerService> logger, DataContainerS
                     throw;
                 }
 
-                await Task.WhenAll(connTasks.Keys);
+                await Task.WhenAll(_connTasks.Keys);
             }
         }
         finally
         {
-            connTasks.Values.ToList().ForEach(cts => cts.Cancel());
+            _connTasks.Values.ToList().ForEach(cts => cts.Cancel());
         }
     }
 
@@ -64,7 +64,7 @@ internal class TcpServerService(ILogger<TcpServerService> logger, DataContainerS
     private Task<byte[]> WriteToPipe(PipeWriter writer, CancellationToken stoppingToken)
     {
         Task<byte[]> observableTask = dataContainerService.RawDataSubject
-            .AsObservable() // Linq 형태로 변환, DataTable에 대해서 AsEnemerable()과 비슷한 역할
+            .AsObservable() // Linq 형태로 변환, DataTable에 대해서 AsEnumerable()과 비슷한 역할
             .Sample(TimeSpan.FromMilliseconds(Statics.Delay)) // 1.1초 간격으로 데이터를 샘플링
             .ObserveOn(TaskPoolScheduler.Default) // ThreadPool에서 실행 (여기선 별 의미 없음)
             .Select(Encoding.UTF8.GetBytes) // dataContainerService에서 발생된 데이터를 byte[]로 변환

@@ -15,17 +15,17 @@ internal class TcpClientService(ILogger<TcpClientService> logger) : BackgroundSe
         bool isRetry = false;
         CancellationTokenSource connectionTokenSource = new(TimeSpan.FromSeconds(Statics.SocketConnectionTimeout));
 
-        for (int current_port = Statics.Port; current_port < Statics.MaxPort;)
+        for (int currentPort = Statics.Port; currentPort < Statics.MaxPort;)
         {
             try
             {
-                await client.ConnectAsync(IPAddress.Loopback, current_port, connectionTokenSource.Token);
+                await client.ConnectAsync(IPAddress.Loopback, currentPort, connectionTokenSource.Token);
 
                 break;
             }
             catch (OperationCanceledException ex)
             {
-                logger.LogError($"IP: {IPAddress.Loopback}, Port: {current_port}, Timeout.");
+                logger.LogError($"IP: {IPAddress.Loopback}, Port: {currentPort}, Timeout.");
 
                 if (!isRetry)
                 {
@@ -35,9 +35,9 @@ internal class TcpClientService(ILogger<TcpClientService> logger) : BackgroundSe
                     continue;
                 }
 
-                logger.LogInformation($"Port Number Up: {++current_port}");
+                logger.LogInformation($"Port Number Up: {++currentPort}");
 
-                if (current_port > Statics.MaxPort)
+                if (currentPort > Statics.MaxPort)
                 {
                     logger.LogInformation($"재시도 포트가 모두 사용되었습니다...프로그램을 종료합니다.");
 
@@ -45,7 +45,6 @@ internal class TcpClientService(ILogger<TcpClientService> logger) : BackgroundSe
                 }
 
                 isRetry = false;
-                continue;
             }
             catch (Exception ex)
             {

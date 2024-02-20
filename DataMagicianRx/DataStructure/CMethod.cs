@@ -9,8 +9,8 @@ public struct CMethod : IJsonRpcMethod
 
     public string MethodName { get; set; }
 
-    private string GetMethodName(string type_name)
+    private string GetMethodName(string typeName)
     {
-        return type_name[..1];
+        return typeName[..1];
     }
 }
